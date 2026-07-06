@@ -8,11 +8,10 @@ import android.widget.ListView;
 import android.widget.TextView;
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.rscja.deviceapi.RFIDWithUHFA4Host;
+import com.rscja.deviceapi.RFIDWithUHFA4;
 import com.rscja.deviceapi.entity.AntennaState;
 import com.rscja.deviceapi.entity.UHFTAGInfo;
 import com.rscja.deviceapi.enums.AntennaEnum;
-import com.rscja.deviceapi.interfaces.ConnectionStatusCallback;
 import com.rscja.deviceapi.interfaces.IUHFInventoryCallback;
 
 import java.text.SimpleDateFormat;
@@ -25,7 +24,7 @@ import java.util.Map;
 
 public class MainActivity extends AppCompatActivity {
 
-    private RFIDWithUHFA4Host reader;
+    private RFIDWithUHFA4 reader;
 
     private Button btnConnect, btnStart, btnStop;
     private CheckBox chkAnt1, chkAnt2, chkAnt3, chkAnt4;
@@ -83,9 +82,7 @@ public class MainActivity extends AppCompatActivity {
             boolean connected;
             String errorDetail = null;
             try {
-                reader = RFIDWithUHFA4Host.getInstance();
-                reader.setConnectionStatusCallback((status, device) ->
-                        runOnUiThread(() -> addDebugLine("connection status: " + status)));
+                reader = RFIDWithUHFA4.getInstance();
                 connected = reader.init(getApplicationContext());
             } catch (Throwable t) {
                 connected = false;
@@ -96,7 +93,7 @@ public class MainActivity extends AppCompatActivity {
             final String finalError = errorDetail;
             runOnUiThread(() -> {
                 if (finalConnected) {
-                    setStatus("Connected — " + safeVersion());
+                    setStatus("Connected");
                     btnStart.setEnabled(true);
                     reader.setInventoryCallback(inventoryCallback);
                 } else if (finalError != null) {
@@ -114,15 +111,6 @@ public class MainActivity extends AppCompatActivity {
     private void addDebugLine(String line) {
         logLines.add(0, "[debug] " + line);
         adapter.notifyDataSetChanged();
-    }
-
-    private String safeVersion() {
-        try {
-            String v = reader.getVersion();
-            return v != null ? v : "unknown version";
-        } catch (Exception e) {
-            return "unknown version";
-        }
     }
 
     private void startScanning() {
