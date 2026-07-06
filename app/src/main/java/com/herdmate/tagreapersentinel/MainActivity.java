@@ -12,6 +12,7 @@ import com.rscja.deviceapi.RFIDWithUHFA4Host;
 import com.rscja.deviceapi.entity.AntennaState;
 import com.rscja.deviceapi.entity.UHFTAGInfo;
 import com.rscja.deviceapi.enums.AntennaEnum;
+import com.rscja.deviceapi.interfaces.ConnectionStatusCallback;
 import com.rscja.deviceapi.interfaces.IUHFInventoryCallback;
 
 import java.text.SimpleDateFormat;
@@ -75,22 +76,44 @@ public class MainActivity extends AppCompatActivity {
     private void connectReader() {
         setStatus("Connecting...");
         btnConnect.setEnabled(false);
+        logLines.clear();
+        adapter.notifyDataSetChanged();
 
         new Thread(() -> {
-            reader = RFIDWithUHFA4Host.getInstance();
-            boolean connected = reader.init(getApplicationContext());
+            boolean connected;
+            String errorDetail = null;
+            try {
+                reader = RFIDWithUHFA4Host.getInstance();
+                reader.setConnectionStatusCallback((status, device) ->
+                        runOnUiThread(() -> addDebugLine("connection status: " + status)));
+                connected = reader.init(getApplicationContext());
+            } catch (Throwable t) {
+                connected = false;
+                errorDetail = t.getClass().getSimpleName() + ": " + t.getMessage();
+            }
 
+            final boolean finalConnected = connected;
+            final String finalError = errorDetail;
             runOnUiThread(() -> {
-                if (connected) {
+                if (finalConnected) {
                     setStatus("Connected — " + safeVersion());
                     btnStart.setEnabled(true);
                     reader.setInventoryCallback(inventoryCallback);
+                } else if (finalError != null) {
+                    setStatus("Connection failed — " + finalError);
+                    btnConnect.setEnabled(true);
                 } else {
-                    setStatus("Connection failed — check hardware and try again");
+                    setStatus("Connection failed — init() returned false, see log below");
+                    addDebugLine("init() returned false with no exception thrown");
                     btnConnect.setEnabled(true);
                 }
             });
         }).start();
+    }
+
+    private void addDebugLine(String line) {
+        logLines.add(0, "[debug] " + line);
+        adapter.notifyDataSetChanged();
     }
 
     private String safeVersion() {
