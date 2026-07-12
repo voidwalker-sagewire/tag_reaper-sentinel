@@ -1,7 +1,8 @@
 package com.herdmate.tagreapersentinel;
 
 import android.content.SharedPreferences;
-import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
@@ -70,7 +71,21 @@ public class MainActivity extends AppCompatActivity {
     private long sessionEndedAt;
     private long pauseStartedAt;
     private long totalPausedMillis;
+    private long totalActiveMillis;
+    private long activeStartedAt;
     private long lastSaveAt;
+
+    private final Handler sessionClockHandler =
+            new Handler(Looper.getMainLooper());
+
+    private final Runnable sessionClockRunnable =
+            new Runnable() {
+                @Override
+                public void run() {
+                     updateSessionText();
+                     sessionClockHandler.postDelayed(this, 1000L);
+            }
+        };
 
     private int totalReads = 0;
 
@@ -148,6 +163,7 @@ public class MainActivity extends AppCompatActivity {
         restoreSession();
         refreshDisplay();
         updateControls();
+        sessionClockHandler.post(sessionClockRunnable);
     }
 
     private void connectReader() {
@@ -202,6 +218,8 @@ public class MainActivity extends AppCompatActivity {
         sessionEndedAt = 0L;
         pauseStartedAt = 0L;
         totalPausedMillis = 0L;
+        totalActiveMillis = 0L;
+        activeStartedAt = 0L;
 
         sessionState = SessionState.READY;
 
@@ -256,6 +274,7 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     sessionState = SessionState.SCANNING;
+                    activeStartedAt = System.currentTimeMillis();
 
                     saveSessionNow();
                     setStatus("Scanning");
@@ -291,6 +310,13 @@ public class MainActivity extends AppCompatActivity {
             final String finalError = error;
 
             runOnUiThread(() -> {
+                if (activeStartedAt > 0L) {
+                    totalActiveMillis +=
+                System.currentTimeMillis() - activeStartedAt;
+
+                    activeStartedAt = 0L;
+                }
+
                 sessionState = SessionState.PAUSED;
                 pauseStartedAt = System.currentTimeMillis();
 
@@ -323,15 +349,20 @@ public class MainActivity extends AppCompatActivity {
             }
 
             runOnUiThread(() -> {
-                if (pauseStartedAt > 0L) {
-                    totalPausedMillis +=
-                            System.currentTimeMillis() - pauseStartedAt;
+                long now = System.currentTimeMillis();
 
-                    pauseStartedAt = 0L;
-                }
+            if (activeStartedAt > 0L) {
+            totalActiveMillis += now - activeStartedAt;
+            activeStartedAt = 0L;
+         }
 
-                sessionEndedAt = System.currentTimeMillis();
-                sessionState = SessionState.ENDED;
+            if (pauseStartedAt > 0L) {
+              totalPausedMillis += now - pauseStartedAt;
+           pauseStartedAt = 0L;
+          }
+
+             sessionEndedAt = now;
+             sessionState = SessionState.ENDED;
 
                 saveSessionNow();
 
@@ -355,6 +386,8 @@ public class MainActivity extends AppCompatActivity {
         sessionEndedAt = 0L;
         pauseStartedAt = 0L;
         totalPausedMillis = 0L;
+        totalActiveMillis = 0L;
+        activeStartedAt = 0L;
 
         sessionState = SessionState.NO_SESSION;
 
@@ -605,40 +638,60 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void updateSessionText() {
-        if (sessionId == null) {
-            txtSession.setText("Session: none");
-            return;
-        }
-
-        String shortId;
-
-        if (sessionId.length() > 8) {
-            shortId = sessionId.substring(0, 8);
-        } else {
-            shortId = sessionId;
-        }
-
-        txtSession.setText(
-                "Session "
-                        + shortId
-                        + " • "
-                        + sessionState.name()
-                        + " • paused "
-                        + formatDuration(currentPausedMillis())
-        );
+    if (sessionId == null) {
+        txtSession.setText("Session: none");
+        return;
     }
 
-    private long currentPausedMillis() {
-        long currentPause = 0L;
+    String shortId;
 
-        if (pauseStartedAt > 0L) {
-            currentPause =
-                    System.currentTimeMillis()
-                            - pauseStartedAt;
-        }
-
-        return totalPausedMillis + currentPause;
+    if (sessionId.length() > 8) {
+        shortId = sessionId.substring(0, 8);
+    } else {
+        shortId = sessionId;
     }
+
+    txtSession.setText(
+            "Session "
+                    + shortId
+                    + " • "
+                    + sessionState.name()
+                    + "\nElapsed "
+                    + formatDuration(currentElapsedMillis())
+                    + " • Active "
+                    + formatDuration(currentActiveMillis())
+                    + " • Paused "
+                    + formatDuration(currentPausedMillis())
+    );
+}
+
+    private long currentActiveMillis() {
+    long currentActive = 0L;
+
+    if (activeStartedAt > 0L) {
+        currentActive =
+                System.currentTimeMillis()
+                        - activeStartedAt;
+    }
+
+    return totalActiveMillis + currentActive;
+}
+
+    private long currentElapsedMillis() {
+    if (sessionStartedAt <= 0L) {
+        return 0L;
+    }
+
+    long endTime;
+
+    if (sessionEndedAt > 0L) {
+        endTime = sessionEndedAt;
+    } else {
+        endTime = System.currentTimeMillis();
+    }
+
+    return Math.max(0L, endTime - sessionStartedAt);
+}
 
     private String formatDuration(long timeMillis) {
         long totalSeconds = timeMillis / 1000L;
@@ -729,9 +782,20 @@ public class MainActivity extends AppCompatActivity {
             root.put("endedAt", sessionEndedAt);
             root.put("pauseStartedAt", pauseStartedAt);
             root.put(
-                    "totalPausedMillis",
-                    totalPausedMillis
+                     "totalPausedMillis",
+                      totalPausedMillis
             );
+
+            root.put(
+                     "totalActiveMillis",
+                      totalActiveMillis
+            );
+
+            root.put(
+                     "activeStartedAt",
+                      activeStartedAt
+            );
+
             root.put("totalReads", totalReads);
 
             JSONArray tags = new JSONArray();
@@ -868,27 +932,47 @@ public class MainActivity extends AppCompatActivity {
                     );
 
             totalPausedMillis =
-                    root.optLong(
-                            "totalPausedMillis",
-                            0L
-                    );
+            root.optLong(
+                "totalPausedMillis",
+                0L
+        );
 
-            totalReads =
-                    root.optInt(
-                            "totalReads",
-                            0
-                    );
+            totalActiveMillis =
+            root.optLong(
+                "totalActiveMillis",
+                0L
+        );
+
+            activeStartedAt =
+        root.optLong(
+                "activeStartedAt",
+                0L
+        );
+
+totalReads =
+        root.optInt(
+                "totalReads",
+                0
+        );
 
             if (sessionState == SessionState.SCANNING) {
-                sessionState = SessionState.PAUSED;
-                pauseStartedAt = System.currentTimeMillis();
+    long now = System.currentTimeMillis();
 
-                setStatus(
-                        "Recovered session — paused for safety"
-                );
-            } else {
-                setStatus("Recovered saved session");
-            }
+    if (activeStartedAt > 0L) {
+        totalActiveMillis += now - activeStartedAt;
+        activeStartedAt = 0L;
+    }
+
+    sessionState = SessionState.PAUSED;
+    pauseStartedAt = now;
+
+    setStatus(
+            "Recovered session — paused for safety"
+    );
+} else {
+    activeStartedAt = 0L;
+    setStatus("Recovered saved session");
+}
 
             uniqueTags.clear();
 
@@ -1023,6 +1107,7 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        sessionClockHandler.removeCallbacks(sessionClockRunnable);
         saveSessionNow();
 
         if (reader != null) {
