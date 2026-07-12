@@ -22,13 +22,22 @@
         android:text="Not connected"
         android:textColor="#888888"
         android:textSize="14sp"
+        android:layout_marginBottom="4dp" />
+
+    <TextView
+        android:id="@+id/txtSession"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Session: none"
+        android:textColor="#f0f0f0"
+        android:textSize="13sp"
         android:layout_marginBottom="10dp" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:layout_marginBottom="10dp">
+        android:layout_marginBottom="6dp">
 
         <Button
             android:id="@+id/btnConnect"
@@ -37,6 +46,20 @@
             android:layout_weight="1"
             android:layout_marginEnd="6dp"
             android:text="Connect" />
+
+        <Button
+            android:id="@+id/btnNewSession"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="New Session" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="6dp">
 
         <Button
             android:id="@+id/btnStart"
@@ -48,12 +71,35 @@
             android:enabled="false" />
 
         <Button
-            android:id="@+id/btnStop"
+            android:id="@+id/btnPause"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Stop Scan"
+            android:text="Pause"
             android:enabled="false" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="10dp">
+
+        <Button
+            android:id="@+id/btnEndSession"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginEnd="6dp"
+            android:text="End Session"
+            android:enabled="false" />
+
+        <Button
+            android:id="@+id/btnClear"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Clear Test Data" />
     </LinearLayout>
 
     <TextView
