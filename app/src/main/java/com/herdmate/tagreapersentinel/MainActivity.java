@@ -1,6 +1,7 @@
 package com.herdmate.tagreapersentinel;
 
 import android.content.SharedPreferences;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.ArrayAdapter;
@@ -71,6 +72,17 @@ public class MainActivity extends AppCompatActivity {
     private long sessionEndedAt;
     private long pauseStartedAt;
     private long totalPausedMillis;
+    private long currentPausedMillis() {
+    long currentPause = 0L;
+
+    if (pauseStartedAt > 0L) {
+        currentPause =
+                System.currentTimeMillis()
+                        - pauseStartedAt;
+    }
+
+    return totalPausedMillis + currentPause;
+    }
     private long totalActiveMillis;
     private long activeStartedAt;
     private long lastSaveAt;
