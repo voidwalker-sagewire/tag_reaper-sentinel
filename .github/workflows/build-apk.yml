@@ -2,7 +2,7 @@ name: Build Tag Reaper Sentinel APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, voidwalker-sagewire-patch-1 ]
   workflow_dispatch:
 
 jobs:
